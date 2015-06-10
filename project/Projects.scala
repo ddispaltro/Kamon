@@ -23,7 +23,7 @@ object Projects extends Build {
 
   lazy val kamon = Project("kamon", file("."))
     .aggregate(kamonCore, kamonScala, kamonAkka, kamonSpray, kamonNewrelic, kamonPlayground, kamonTestkit,
-      kamonStatsD, kamonDatadog, kamonSPM, kamonSystemMetrics, kamonLogReporter, kamonAkkaRemote, kamonJdbc,
+      kamonStatsD, kamonDatadog, kamonSPM, kamonSystemMetrics, kamonLogReporter, kamonAkkaRemote, kamonJdbc, kamonAkkaHttp
       kamonAnnotation, kamonPlay, kamonJMXReporter, kamonFluentd, kamonAutoweave)
     .settings(basicSettings: _*)
     .settings(formatSettings: _*)
@@ -80,6 +80,16 @@ object Projects extends Build {
         provided(aspectJ) ++
         test(scalatest, akkaTestKit, akkaSlf4j, slf4jJul, slf4jLog4j, logback))
 
+  lazy val kamonAkkaHttp = Project("kamon-akka-http-server", file("kamon-akka-http-server"))
+    .dependsOn(kamonScala)
+    .settings(basicSettings: _* )
+    .settings(formatSettings: _*)
+    .settings(aspectJSettings: _*)
+    .settings(
+      libraryDependencies ++=
+        compile(akkaHttpCore, akkaHttp) ++
+        provided(aspectJ) ++
+        test(scalatest, akkaTestKit, akkaSlf4j, slf4Jul, slf4Log4j, logback))
 
   lazy val kamonSpray = Project("kamon-spray", file("kamon-spray"))
     .dependsOn(kamonCore % "compile->compile;test->test", kamonAkka, kamonTestkit % "test")
