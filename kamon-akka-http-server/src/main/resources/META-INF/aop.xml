@@ -10,6 +10,6 @@
   </aspects>
 
   <weaver>
-    <include within="*"/>
+    <include within="akka.http.scaladsl..*"/>
   </weaver>
 </aspectj>

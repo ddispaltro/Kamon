@@ -64,13 +64,7 @@ class RequestContextInstrumentation extends ServerInstrumentationUtils {
   def requestContextCreation(context: RequestContext with TraceContextAware): Unit = {}
 
   @Around("requestContextCreation(context)")
-  def afterCreation(pjp: ProceedingJoinPoint, context: RequestContext with TraceContextAware): Unit = {
-    val incomingContext = Tracer.currentContext
-
-    Tracer.withContext(incomingContext) {
-      pjp.proceed()
-    }
-  }
+  def afterCreation(pjp: ProceedingJoinPoint, context: RequestContext with TraceContextAware): Unit = {}
 }
 
 @Aspect

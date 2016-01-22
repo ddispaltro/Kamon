@@ -30,7 +30,7 @@ object AkkaHttpServerExtensionSettings {
     val includeTraceTokenHeader: Boolean = httpConfig.getBoolean("automatic-trace-token-propagation")
     val traceTokenHeaderName: String = httpConfig.getString("trace-token-header-name")
 
-    val nameGeneratorFQN = config.getString("name-generator")
+    val nameGeneratorFQN = httpConfig.getString("name-generator")
     val nameGenerator: NameGenerator = new ReflectiveDynamicAccess(getClass.getClassLoader)
       .createInstanceFor[NameGenerator](nameGeneratorFQN, Nil).get // let's bubble up any problems.
 
