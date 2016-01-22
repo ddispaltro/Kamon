@@ -15,7 +15,8 @@
  * ========================================================== */
 package kamon.akka.http.server
 
-import akka.actor.ExtendedActorSystem
+import akka.actor.{ ReflectiveDynamicAccess, ExtendedActorSystem }
+import com.typesafe.config.Config
 
 case class AkkaHttpServerExtensionSettings(
   includeTraceTokenHeader: Boolean,
@@ -23,14 +24,15 @@ case class AkkaHttpServerExtensionSettings(
   nameGenerator: NameGenerator)
 
 object AkkaHttpServerExtensionSettings {
-  def apply(system: ExtendedActorSystem): AkkaHttpServerExtensionSettings = {
-    val config = system.settings.config.getConfig("kamon.akka.http.server")
+  def apply(config: Config): AkkaHttpServerExtensionSettings = {
+    val httpConfig = config.getConfig("kamon.akka.http.server")
 
-    val includeTraceTokenHeader: Boolean = config.getBoolean("automatic-trace-token-propagation")
-    val traceTokenHeaderName: String = config.getString("trace-token-header-name")
+    val includeTraceTokenHeader: Boolean = httpConfig.getBoolean("automatic-trace-token-propagation")
+    val traceTokenHeaderName: String = httpConfig.getString("trace-token-header-name")
 
-    val nameGeneratorFQN: String = config.getString("name-generator")
-    val nameGenerator: NameGenerator = system.dynamicAccess.createInstanceFor[NameGenerator](nameGeneratorFQN, Nil).get
+    val nameGeneratorFQN = config.getString("name-generator")
+    val nameGenerator: NameGenerator = new ReflectiveDynamicAccess(getClass.getClassLoader)
+      .createInstanceFor[NameGenerator](nameGeneratorFQN, Nil).get // let's bubble up any problems.
 
     AkkaHttpServerExtensionSettings(includeTraceTokenHeader, traceTokenHeaderName, nameGenerator)
   }

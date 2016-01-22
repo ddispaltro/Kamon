@@ -20,7 +20,7 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{ HttpResponse, HttpRequest }
 import akka.http.scaladsl.server.RequestContext
 import kamon.Kamon
-import kamon.akka.http.server.{ AkkaHttpServerExtension, AkkaHttpServer, AkkaHttpServerMetrics }
+import kamon.akka.http.server.{ AkkaHttpServerExtension, AkkaHttpServerMetrics }
 import kamon.metric.Entity
 import kamon.trace.{ TraceContextAware, Tracer }
 import org.aspectj.lang.ProceedingJoinPoint
@@ -37,12 +37,12 @@ class HttpRequestInstrumentation extends ServerInstrumentationUtils {
 
   @After("httpRequestCreation(request)")
   def afterHttpRequestCreation(request: HttpRequest with TraceContextAware): Unit = {
-    val akkaHttpServerExtension = Kamon(AkkaHttpServer)
+    request.traceContext
     val incomingContext = Tracer.currentContext
 
     if (incomingContext.isEmpty) {
-      val defaultTraceName = akkaHttpServerExtension.generateTraceName(request)
-      val token = request.headers.find(_.name == akkaHttpServerExtension.settings.traceTokenHeaderName).map(_.value)
+      val defaultTraceName = AkkaHttpServerExtension.generateTraceName(request)
+      val token = request.headers.find(_.name == AkkaHttpServerExtension.settings.traceTokenHeaderName).map(_.value)
 
       val newContext = Kamon.tracer.newContext(defaultTraceName, token)
       Tracer.setCurrentContext(newContext)
@@ -50,7 +50,7 @@ class HttpRequestInstrumentation extends ServerInstrumentationUtils {
 
     request.traceContext
 
-    recordAkkaHttpServerMetrics(request, akkaHttpServerExtension)
+    recordAkkaHttpServerMetrics(request)
   }
 }
 
@@ -84,17 +84,16 @@ class HttpResponseInstrumentation extends ServerInstrumentationUtils {
 
   @Around("httpResponseCreation()")
   def afterHttpResponseCreation(pjp: ProceedingJoinPoint) = {
-    val akkaHttpServerExtension = Kamon(AkkaHttpServer)
     val incomingContext = Tracer.currentContext
 
     val response: HttpResponse = pjp.proceed().asInstanceOf[HttpResponse]
 
     val proceed =
-      if (!incomingContext.isEmpty && akkaHttpServerExtension.settings.includeTraceTokenHeader) {
+      if (!incomingContext.isEmpty && AkkaHttpServerExtension.settings.includeTraceTokenHeader) {
         val responseWithTraceTokenHeader =
           attachTraceTokenHeader(
             response,
-            akkaHttpServerExtension.settings.traceTokenHeaderName,
+            AkkaHttpServerExtension.settings.traceTokenHeaderName,
             incomingContext.token)
         responseWithTraceTokenHeader
       } else {
@@ -105,7 +104,7 @@ class HttpResponseInstrumentation extends ServerInstrumentationUtils {
       incomingContext.finish()
     }
 
-    recordAkkaHttpServerMetrics(response, incomingContext.name, akkaHttpServerExtension)
+    recordAkkaHttpServerMetrics(response, incomingContext.name)
 
     proceed
   }
@@ -119,8 +118,7 @@ class ServerInstrumentation {
 
   @After("serverBindingCreation(binding)")
   def afterServerBindingCreation(binding: ServerBinding): Unit = {
-    val akkaHttpServerExtension = Kamon(AkkaHttpServer)
-    val serverMetrics = akkaHttpServerExtension.serverMetrics
+    val serverMetrics = AkkaHttpServerExtension.httpServerMetrics
     val bindingAddress = binding.localAddress.toString
   }
 
@@ -130,8 +128,7 @@ class ServerInstrumentation {
   @After("newIncomingConnection(connection)")
   def afterNewIncomingConnection(connection: IncomingConnection): Unit = {
     val bindingAddress = connection.localAddress.toString
-    val akkaHttpServerExtension = Kamon(AkkaHttpServer)
-    val serverMetrics = akkaHttpServerExtension.serverMetrics
+    val serverMetrics = AkkaHttpServerExtension.httpServerMetrics
 
     if (Kamon.metrics.shouldTrack(bindingEntity(bindingAddress))) {
       serverMetrics.recordConnection(bindingAddress)
@@ -143,12 +140,12 @@ class ServerInstrumentation {
 }
 
 trait ServerInstrumentationUtils {
-  def recordAkkaHttpServerMetrics(request: HttpRequest, akkaHttpServerExtension: AkkaHttpServerExtension): Unit =
-    akkaHttpServerExtension.serverMetrics.openConnections.increment()
+  def recordAkkaHttpServerMetrics(request: HttpRequest): Unit =
+    AkkaHttpServerExtension.httpServerMetrics.openConnections.increment()
 
-  def recordAkkaHttpServerMetrics(response: HttpResponse, traceName: String, akkaHttpServerExtension: AkkaHttpServerExtension): Unit = {
-    akkaHttpServerExtension.serverMetrics.recordResponse(traceName, response.status.intValue().toString)
-    akkaHttpServerExtension.serverMetrics.openConnections.decrement()
+  def recordAkkaHttpServerMetrics(response: HttpResponse, traceName: String): Unit = {
+    AkkaHttpServerExtension.httpServerMetrics.recordResponse(traceName, response.status.intValue().toString)
+    AkkaHttpServerExtension.httpServerMetrics.openConnections.decrement()
   }
 
   def attachTraceTokenHeader(response: HttpResponse, traceTokenHeaderName: String, traceToken: String): HttpResponse =

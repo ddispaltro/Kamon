@@ -15,9 +15,9 @@
  * ========================================================== */
 package kamon.akka.http.server
 
-import kamon.http.HttpServerMetrics
 import kamon.metric.EntityRecorderFactory
 import kamon.metric.instrument.InstrumentFactory
+import kamon.util.http.HttpServerMetrics
 
 class AkkaHttpServerMetrics(instrumentFactory: InstrumentFactory) extends HttpServerMetrics(instrumentFactory) {
   def recordConnection(bindingAddress: String): Unit =
